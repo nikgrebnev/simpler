@@ -5,6 +5,11 @@ module Simpler
 
     attr_reader :name, :request, :response
 
+    CONTENT_TYPES = {
+        :html => 'text/html',
+        :plain => 'text/plain'
+    }.freeze
+
     def initialize(env)
       @name = extract_name
       @request = Rack::Request.new(env)
@@ -15,11 +20,20 @@ module Simpler
       @request.env['simpler.controller'] = self
       @request.env['simpler.action'] = action
 
-      set_default_headers
       send(action)
+
+      set_default_headers
+
       write_response
 
       @response.finish
+    end
+
+    def params
+#      puts "params"
+#      puts "@request.env['simpler.params'] #{@request.env['simpler.params']}"
+#      puts "@request.params #{@request.params}"
+      @request.env['simpler.params'].merge!(@request.params)
     end
 
     private
@@ -29,7 +43,11 @@ module Simpler
     end
 
     def set_default_headers
-      @response['Content-Type'] = 'text/html'
+      add_header'Content-Type', CONTENT_TYPES[@content_type || :html]
+    end
+
+    def add_header(var,val)
+      @response[var] = val
     end
 
     def write_response
@@ -39,16 +57,30 @@ module Simpler
     end
 
     def render_body
-      View.new(@request.env).render(binding)
+      @render_body || View.new(@request.env).render(binding)
     end
 
-    def params
-      @request.params
+    def render(*var_array)
+      options = var_array[0]
+      if options.is_a?(Hash)
+        options.each do |key,val|
+          case key
+            when :plain
+              @render_type = key
+              @render_body = val
+          end
+        end
+      else
+        @request.env['simpler.template'] = options
+      end
     end
 
-    def render(template)
-      @request.env['simpler.template'] = template
+    def status(status)
+      @response.status = status
     end
 
+    def content_type(type)
+      @content_type = type
+    end
   end
 end

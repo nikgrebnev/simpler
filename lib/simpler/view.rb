@@ -12,8 +12,13 @@ module Simpler
     def render(binding)
       template = File.read(template_path)
 
+      render_inline(binding, template)
+    end
+
+    def render_inline(binding, template)
       ERB.new(template).result(binding)
     end
+
 
     private
 
@@ -31,6 +36,7 @@ module Simpler
 
     def template_path
       path = template || [controller.name, action].join('/')
+      @env['simpler.render_path'] = "#{path}.html.erb"
 
       Simpler.root.join(VIEW_BASE_PATH, "#{path}.html.erb")
     end
